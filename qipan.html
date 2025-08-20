@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="x5-fullscreen" content="true">
+    <meta name="x5-page-mode" content="app">
+    <title>酋棋完整棋盘演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            margin: 0;
+            height: 100vh;
+					 background: url('img/标准棋盘.webp') no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;					 
+			  -webkit-tap-highlight-color: transparent;
+			  -webkit-user-select: none;
+			  user-select: none;			
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .content {
+            max-width: 800px;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+		
+        .chessboard {
+				  position: absolute;
+				  width: 113vmin;
+				  height: 91vmin;
+				  left: 50%;
+				  top: 50%;
+				  transform: translate(-50%, -50%);
+				  display: grid;
+				  grid-template-columns: repeat(9, 1fr);
+				  grid-template-rows: repeat(9, 1fr);
+        }
+        .cell {
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .cell:hover {
+            transform: scale(0.95);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+				.cell.disable-hover {
+					pointer-events: none;
+				}	
+				
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .dialog-content {			
+            position: flex;
+            background-size: 900% 900%;
+            background-repeat: no-repeat;
+            z-index: 100;
+            display: none;
+            cursor: zoom-out;			
+            width: 90%;
+            height: 90%;
+            color: white;
+            font-size: 2rem;
+            text-align: center;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+					 display: flex;
+					 justify-content: center;
+					 align-items: center;	
+        }
+        .quote-text {
+            background-color: rgba(0,0,0,0.24);
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 80%;
+			     margin: auto;
+        }		
+    </style>
+</head>
+<body>
+    <div class="chessboard" id="chessboard"></div>
+    <div class="dialog-overlay" id="dialogOverlay">
+        <div class="dialog-content" id="dialogContent">
+            <div class="quote-text" id="quoteText"></div>
+        </div>
+    </div>
+		<!--
+    <div class="container">
+        <div class="content">
+            <h1>全屏展示DEMO</h1>
+            <p>这是一个适配微信X5内核的响应式全屏展示页面，内容将始终居中显示并自动适应各种屏幕尺寸</p>
+            <button class="btn-fullscreen" id="fullscreenBtn">进入全屏模式</button>
+        </div>
+    </div>
+-->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            
+            // 自动尝试全屏（微信X5内核）
+            if (navigator.userAgent.match(/MicroMessenger/i)) {
+                try {
+                    document.documentElement.webkitRequestFullScreen();
+                } catch(e) {
+                    console.log('X5全屏失败:', e);
+                }
+            }
+
+            // 响应式调整
+            function resizeHandler() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            }
+            window.addEventListener('resize', resizeHandler);
+            resizeHandler();
+        });
+    </script>
+	
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chessboard = document.getElementById('chessboard');
+            const dialogOverlay = document.getElementById('dialogOverlay');
+            const dialogContent = document.getElementById('dialogContent');
+            const quoteText = document.getElementById('quoteText');
+            const bgImageUrl = 'img/主棋盘.png';
+			
+            // 名言库
+            const quotes = [
+                {no:'11',isGua:true,name:'乾',title:'乾为天',guaci:'天行健，君子以自强不息。'},
+                {no:'44',isGua:true,name:'大壮',title:'雷天大壮',guaci:'君子以非礼勿履。'},
+				{no:'71',isGua:true,name:'中孚',title:'风泽中孚',guaci:'君子以议狱缓死。'},
+				{no:'29',isGua:true,name:'临',title:'地泽临',guaci:'君子以教思无穷，容保民无疆。'},
+				{no:'81',isGua:false,name:'',title:'',guaci:''},
+				{no:'31',isGua:true,name:'噬嗑',title:'火雷噬嗑',guaci:'先王以明罚敕法。'},
+				{no:'27',isGua:true,name:'随',title:'泽雷随',guaci:'君子以向晦入宴息。'},
+				{no:'32',isGua:true,name:'贲',title:'山火贲',guaci:'君子以明庶政，无敢折狱。'},
+				{no:'73',isGua:true,name:'既济',title:'水火既济',guaci:'君子以思患而预防之。'},
+				
+                {no:'24',isGua:true,name:'大有',title:'火天大有',guaci:'君子以竭恶扬善，顺天休命。'},
+                {no:'53',isGua:true,name:'夬',title:'泽天夬',guaci:'君子以施禄及下，居德则忌。'},
+				{no:'51',isGua:true,name:'损',title:'山泽损',guaci:'君子以惩忿窒欲。'},
+				{no:'70',isGua:true,name:'节',title:'水泽节',guaci:'君子以制数度，议德行。'},
+				{no:'79',isGua:false,name:'',title:'',guaci:''},
+				{no:'35',isGua:true,name:'无妄',title:'天雷无妄',guaci:'先王以茂对时，育万物。'},
+				{no:'61',isGua:true,name:'雷',title:'震为雷',guaci:'君子以恐惧修身。'},
+				{no:'47',isGua:true,name:'家人',title:'风火家人',guaci:'君子以言有物，而行有恒。'},
+				{no:'46',isGua:true,name:'明夷',title:'地火明夷',guaci:'君子以莅众，用晦而明。'},
+
+                {no:'20',isGua:true,name:'履',title:'天泽履',guaci:'君子以辨上，下安民志。'},
+                {no:'64',isGua:true,name:'归妹',title:'雷泽归妹',guaci:'君子以永终知敝。'},
+				{no:'19',isGua:true,name:'小畜',title:'风天小畜',guaci:'君子以懿文德。'},
+				{no:'21',isGua:true,name:'泰',title:'地天泰',guaci:'后以财成天地之道，辅相天地之宜，以左右民。'},
+				{no:'3',isGua:false,name:'',title:'',guaci:''},
+				{no:'40',isGua:true,name:'离',title:'离为火',guaci:'大人以继明照于四方。'},
+				{no:'59',isGua:true,name:'革',title:'泽火革',guaci:'君子以治历明时。'},
+				{no:'37',isGua:true,name:'颐',title:'山雷颐',guaci:'君子以慎言语，节饮食。'},
+				{no:'13',isGua:true,name:'屯',title:'水雷屯',guaci:'君子以经纶。'},
+
+                {no:'48',isGua:true,name:'睽',title:'火泽睽',guaci:'君子以同而异。'},
+                {no:'68',isGua:true,name:'泽',title:'兑为泽',guaci:'君子以朋友讲习。'},
+				{no:'36',isGua:true,name:'大畜',title:'山天大畜',guaci:'君子以多识前言，往行以畜其德。'},
+				{no:'15',isGua:true,name:'需',title:'水天需',guaci:'君子以饮食宴乐。'},
+				{no:'3',isGua:false,name:'',title:'',guaci:''},
+				{no:'23',isGua:true,name:'同人',title:'天火同人',guaci:'君子以类族辨物。'},
+				{no:'65',isGua:true,name:'丰',title:'雷火丰',guaci:'君子以折狱致刑。'},
+				{no:'52',isGua:true,name:'益',title:'风雷益',guaci:'君子以见善则迁，有过则改。'},
+				{no:'34',isGua:true,name:'复',title:'地雷复',guaci:'先王以至日闭关，商旅不行，后不省方。'},
+
+                {no:'2',isGua:false,name:'',title:'',guaci:''},
+                {no:'5',isGua:false,name:'',title:'',guaci:''},
+				{no:'6',isGua:false,name:'',title:'',guaci:''},
+				{no:'76',isGua:false,name:'',title:'',guaci:''},
+				{no:'5',isGua:false,name:'',title:'',guaci:''},
+				{no:'4',isGua:false,name:'',title:'',guaci:''},
+				{no:'78',isGua:false,name:'',title:'',guaci:''},
+				{no:'9',isGua:false,name:'',title:'',guaci:''},
+				{no:'1',isGua:false,name:'',title:'',guaci:''},
+
+                {no:'54',isGua:true,name:'姤',title:'天风姤',guaci:'后以施命，诰四方。'},
+                {no:'42',isGua:true,name:'恒',title:'雷风恒',guaci:'君子以立，不易方。'},
+				{no:'69',isGua:true,name:'涣',title:'风水涣',guaci:'先王以享于帝，立庙。'},
+				{no:'17',isGua:true,name:'师',title:'地水师',guaci:'君子以容民，畜众。'},
+				{no:'76',isGua:false,name:'',title:'',guaci:''},
+				{no:'45',isGua:true,name:'晋',title:'火地晋',guaci:'君子以自昭，明德。'},
+				{no:'55',isGua:true,name:'萃',title:'泽地萃',guaci:'君子以除戎器，戒不虞。'},
+				{no:'62',isGua:true,name:'山',title:'艮为山',guaci:'君子以思，不出其位。'},
+				{no:'49',isGua:true,name:'蹇',title:'水山蹇',guaci:'君子以反身，修德。'},
+
+                {no:'60',isGua:true,name:'鼎',title:'火风鼎',guaci:'君子以正位，凝命。'},
+                {no:'38',isGua:true,name:'大过',title:'泽风大过',guaci:'君子以独立不惧，遯世无闷。'},
+				{no:'14',isGua:true,name:'蒙',title:'山水蒙',guaci:'君子以果行，育德。'},
+				{no:'39',isGua:true,name:'坎',title:'坎为水',guaci:'君子以常德，行习教事。'},
+				{no:'6',isGua:false,name:'',title:'',guaci:''},
+				{no:'22',isGua:true,name:'否',title:'天地否',guaci:'君子以俭德辟难，不可荣以禄。'},
+				{no:'26',isGua:true,name:'豫',title:'雷地豫',guaci:'先王以作乐崇德，殷荐之上帝，以配祖考。'},
+				{no:'63',isGua:true,name:'渐',title:'风山渐',guaci:'君子以居贤德，善俗。'},
+				{no:'25',isGua:true,name:'谦',title:'地山谦',guaci:'君子以裒多益寡，称物平施。'},
+
+                {no:'16',isGua:true,name:'讼',title:'天水讼',guaci:'君子以作事，谋始。'},
+                {no:'50',isGua:true,name:'解',title:'雷水解',guaci:'君子以赦过，宥罪。'},
+				{no:'67',isGua:true,name:'巽',title:'巽为风',guaci:'君子以申命，行事。'},
+				{no:'56',isGua:true,name:'升',title:'地风升',guaci:'君子以顺德，积小以高大。'},
+				{no:'8',isGua:false,name:'',title:'',guaci:''},
+				{no:'66',isGua:true,name:'旅',title:'火山旅',guaci:'君子以明，慎用刑，而不留狱。'},
+				{no:'41',isGua:true,name:'咸',title:'泽山咸',guaci:'君子以虚受人。'},
+				{no:'33',isGua:true,name:'剥',title:'山地剥',guaci:'上以厚，下安宅。'},
+				{no:'18',isGua:true,name:'比',title:'水地比',guaci:'先王以建万国，亲诸侯。'},				
+
+                {no:'74',isGua:true,name:'未济',title:'火水未济',guaci:'君子以慎，辨物居方。'},
+                {no:'57',isGua:true,name:'困',title:'泽水困',guaci:'君子以致命，遂志。'},
+				{no:'28',isGua:true,name:'蛊',title:'山风蛊',guaci:'君子以振民，育德。'},
+				{no:'58',isGua:true,name:'井',title:'水风井',guaci:'君子以劳民，劝相。'},
+				{no:'2',isGua:false,name:'',title:'',guaci:''},
+				{no:'43',isGua:true,name:'遯',title:'天山遯',guaci:'君子以远小人，不恶而严。'},
+				{no:'72',isGua:true,name:'小过',title:'雷山小过',guaci:'君子以行过乎恭，丧过乎哀，用过乎俭。'},
+				{no:'30',isGua:true,name:'观',title:'风地观',guaci:'先王以省方，观民设教。'},
+				{no:'12',isGua:true,name:'坤',title:'坤为地',guaci:'地势坤，君子以厚德载物。'}				
+            ];            
+            
+			//if ('speechSynthesis' in window) {
+				// 语音朗读功能
+				let speech = new SpeechSynthesisUtterance();		
+				const voices = speechSynthesis.getVoices();
+				const maleVoice = voices.find(v => v.lang === 'zh-CN' && v.name.includes('Male'));
+				const femaleVoice = voices.find(v => v.lang === 'zh-CN' && v.name.includes('Female'));		
+				speech.lang = 'zh-CN';
+				speech.rate = 0.5; 	
+				let isSpeaking = false;			
+			//}	
+	
+            // 创建81个格子
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                
+                // 计算背景位置
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                const xPos = (col / 8) * 100;
+                const yPos = (row / 8) * 100;
+
+                ///gridItem.style.backgroundImage = `url(${bgImageUrl})`;
+                cell.style.backgroundPosition = `${xPos}% ${yPos}%`;
+                
+				const obj = quotes[i];
+			   if(obj.isGua){
+					cell.addEventListener('click', function() {
+						dialogContent.style.backgroundImage = `url(${bgImageUrl})`;
+						dialogContent.style.backgroundPosition = `${xPos}% ${yPos}%`;
+						dialogContent.style.display = 'block';
+						
+						 quoteText.innerHTML = obj.title + "<br>" + obj.guaci ;
+						// 显示对话框
+						dialogOverlay.style.display = 'flex';		
+
+						// 自动检测浏览器语音支持
+						if ('speechSynthesis' in window) {
+							// 语音朗读功能																				
+							if (!isSpeaking) {
+								speech.text = obj.title + ",,";
+								if(i%2 ==0){
+									speech.voice = maleVoice;
+								}else{
+									speech.voice = femaleVoice;
+								}								
+								speechSynthesis.speak(speech);
+								
+								if(i%2 ==0){
+									speech.voice = femaleVoice;
+								}else{
+									speech.voice = maleVoice;
+								}								
+								speech.text = obj.guaci;
+								speechSynthesis.speak(speech);
+								isSpeaking = true;
+							}							  
+						} else {
+							console.log('当前浏览器不支持语音合成');
+						}			
+					});
+				}else{
+					if(obj.no == 5){
+						//退出！
+					}else{
+						cell.classList.add('disable-hover');
+					}
+				}
+				// 尝试全屏（微信X5内核）
+				if (navigator.userAgent.match(/MicroMessenger/i)) {
+					try {
+						dialogContent.webkitRequestFullscreen();
+					} catch(e) {
+						console.log('X5全屏失败:', e);
+					}
+				}
+                
+                chessboard.appendChild(cell);
+            }
+            
+            // 点击对话框关闭
+            dialogOverlay.addEventListener('click', function() {
+                this.style.display = 'none';
+                speechSynthesis.cancel();
+                isSpeaking = false;               
+                // 退出全屏
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                }
+            });
+        });			
+    </script>	
+</body>
+</html>
